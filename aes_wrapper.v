@@ -41,19 +41,12 @@ module axi_aes_wrapper (
     reg [127:0] slv_key_reg;
     reg [127:0] slv_plaintext_reg;
     wire [127:0] core_ciphertext;
-
-    // -------------------------------------------------------------------------
-    // Core Control & Pipeline Tracking
-    // -------------------------------------------------------------------------
     reg core_enable;
     reg [3:0] flush_counter;
     reg [11:0] pipeline_track;
     reg [127:0] latched_ciphertext;
     reg trigger_injection;
 
-    // -------------------------------------------------------------------------
-    // AXI Write Handshake
-    // -------------------------------------------------------------------------
     wire slv_reg_wren = S_AXI_WREADY && S_AXI_WVALID && S_AXI_AWREADY && S_AXI_AWVALID;
 
     always @(posedge S_AXI_ACLK) begin
@@ -109,16 +102,13 @@ module axi_aes_wrapper (
                     8'h2C: begin
                         slv_plaintext_reg[31:0] <= S_AXI_WDATA;
                         
-                        // Flag that a full 128-bit block is ready (Acts like tvalid)
                         has_new_data <= 1'b1; 
                     end
                 endcase
-            // Consume the flag ONLY when the pipeline actually ingests the data
             end else if (core_enable && has_new_data) begin
                 has_new_data <= 1'b0; 
             end
 
-            // 2. Pipeline Enable & Flush
             if (has_new_data) begin
                 flush_counter <= 4'd12;
                 core_enable   <= 1'b1;
@@ -129,14 +119,12 @@ module axi_aes_wrapper (
                 core_enable   <= 1'b0;
             end
 
-            // 3. The AXI-Stream Style Tracker (Ported from your old code!)
+            
             if (core_enable) begin
-                // Shifts the valid bit IN perfectly aligned with Round 1 capturing data
+                
                 pipeline_track <= {pipeline_track[10:0], has_new_data};
             end
 
-            // 4. Output Latch
-            // Because your core has 10 registered rounds, the data perfectly aligns at index 9
             if (pipeline_track[9]) begin
                 latched_ciphertext <= core_ciphertext;
             end
@@ -165,7 +153,7 @@ module axi_aes_wrapper (
         end
     end
 
-    // Address Decoding for Reads
+   
     always @(posedge S_AXI_ACLK) begin
         if (slv_reg_rden) begin
             case (S_AXI_ARADDR[7:0])
@@ -175,8 +163,8 @@ module axi_aes_wrapper (
                 8'h14: S_AXI_RDATA <= slv_key_reg[95:64];
                 8'h18: S_AXI_RDATA <= slv_key_reg[63:32];
                 8'h1C: S_AXI_RDATA <= slv_key_reg[31:0];
+
                 
-                // Read from the clean, stable latch
                 8'h30: S_AXI_RDATA <= latched_ciphertext[127:96];
                 8'h34: S_AXI_RDATA <= latched_ciphertext[95:64];
                 8'h38: S_AXI_RDATA <= latched_ciphertext[63:32];
@@ -185,10 +173,6 @@ module axi_aes_wrapper (
             endcase
         end
     end
-
-    // -------------------------------------------------------------------------
-    // Core Instantiation
-    // -------------------------------------------------------------------------
     AES_core aes_inst (
         .clk         (S_AXI_ACLK),
         .rst         (S_AXI_ARESETN),       
