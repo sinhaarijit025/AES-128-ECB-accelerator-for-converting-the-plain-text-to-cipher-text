@@ -1,41 +1,26 @@
 `timescale 1ns / 1ps
 
 module axi_aes_wrapper (
-    // Clock and Reset
     input  wire        S_AXI_ACLK,
     input  wire        S_AXI_ARESETN,
-
-    // AXI4-Lite Write Address Channel
     input  wire [31:0] S_AXI_AWADDR,
     input  wire        S_AXI_AWVALID,
     output reg         S_AXI_AWREADY,
-
-    // AXI4-Lite Write Data Channel
     input  wire [31:0] S_AXI_WDATA,
     input  wire [3:0]  S_AXI_WSTRB,
     input  wire        S_AXI_WVALID,
     output reg         S_AXI_WREADY,
-
-    // AXI4-Lite Write Response Channel
     output reg  [1:0]  S_AXI_BRESP,
     output reg         S_AXI_BVALID,
     input  wire        S_AXI_BREADY,
-
-    // AXI4-Lite Read Address Channel
     input  wire [31:0] S_AXI_ARADDR,
     input  wire        S_AXI_ARVALID,
     output reg         S_AXI_ARREADY,
-
-    // AXI4-Lite Read Data Channel
     output reg  [31:0] S_AXI_RDATA,
     output reg  [1:0]  S_AXI_RRESP,
     output reg         S_AXI_RVALID,
     input  wire        S_AXI_RREADY
 );
-
-    // -------------------------------------------------------------------------
-    // Internal Registers for the Memory Map
-    // -------------------------------------------------------------------------
     reg [31:0]  slv_control_reg;
     reg [31:0]  slv_status_reg;
     reg [127:0] slv_key_reg;
@@ -70,10 +55,6 @@ module axi_aes_wrapper (
             end
         end
     end
-
-    // -------------------------------------------------------------------------
-    // Unified Control FSM: The AXI-Stream Tracking Port
-    // -------------------------------------------------------------------------
     reg has_new_data;
 
     always @(posedge S_AXI_ACLK) begin
@@ -87,8 +68,6 @@ module axi_aes_wrapper (
             latched_ciphertext <= 128'b0;
             has_new_data       <= 1'b0;
         end else begin
-            
-            // 1. AXI Address Decoding
             if (slv_reg_wren) begin
                 case (S_AXI_AWADDR[7:0])
                     8'h00: slv_control_reg <= S_AXI_WDATA;
@@ -130,9 +109,6 @@ module axi_aes_wrapper (
             end
         end
     end
-    // -------------------------------------------------------------------------
-    // AXI Read Logic
-    // -------------------------------------------------------------------------
     wire slv_reg_rden = S_AXI_ARREADY & S_AXI_ARVALID & ~S_AXI_RVALID;
 
     always @(posedge S_AXI_ACLK) begin
